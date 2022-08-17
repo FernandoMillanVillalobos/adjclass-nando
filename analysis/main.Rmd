@@ -1,7 +1,6 @@
 ---
-title: "rddj-template"
-subtitle: "My analysis"
-author: "My Name"
+title: "Advanced data journalism: Doing more with R"
+author: "Fernando Millan Villalobos"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -39,10 +38,10 @@ knitr::opts_chunk$set(
 # CONFIG
 user_name <- "fernandomillanvillalobos" # your Git username (only needed if
 # you want to deploy to GH pages)
-project_name <- "rddj-template" # adapt!
+project_name <- "adjclass-nando" # adapt!
 package_date <- "2022-05-01" # date of the CRAN snapshot that
 # the checkpoint package uses
-r_version <- "4.2.0" # R-Version to use
+r_version <- "4.2.1" # R-Version to use
 options(Ncpus = 4) # use 4 cores for parallelized installation of packages
 if (r_version != paste0(version$major, ".", version$minor)) {
   stop("ERROR: specified R version does not match currently used.")
@@ -150,6 +149,10 @@ library(cowplot)
 library(extrafont)
 library(ggrepel)
 library(scales)
+library(remotes)
+library(lubridate)
+library(rvest)
+library(httr)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -215,11 +218,6 @@ source("scripts/outliers.R")
 ```
 
 # Introduction
-# Data Importing
-# Data Pre-Processing
-# Exploratory Data Analysis (EDA)
-## Data Summarization
-## Data Visualization
 
 # Linting
 
