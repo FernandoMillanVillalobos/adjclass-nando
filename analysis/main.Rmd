@@ -217,7 +217,139 @@ knitr::read_chunk("scripts/outliers.R")
 source("scripts/outliers.R")
 ```
 
-# Introduction
+# Module 1
+
+In this lesson, we’re going to start exploring data with the package dplyr.
+
+- It’s designed to work with data frames, which is what journalists are used to
+- Great for data exploration and transformation
+- Intuitive to write and easy to read, especially when using the “chaining” syntax of pipes
+- These are the functions/data analysis verbs we’ll be going over:
+
+- `filter()`
+- `select()`
+- `arrange()`
+- `mutate()`
+- `summarize()` plus `group_by()`
+
+```{r, fig.cap=c("Module 1: Analyzing data with R"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
+knitr::include_graphics("input/pdf/ADJ_Class_1.pdf")  
+```
+```{r}
+# getting the data https://www.fema.gov/openfema-data-page/disaster-declarations-summaries-v2
+df <- read_csv("https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.csv") %>% 
+  glimpse()
+
+# getting the range
+range(df$incidentBeginDate)
+
+# exploring the data with table()
+table(df$incidentType)
+# or with count()
+incident_types <- count(df, incidentType, name = "total") # rename the default "n" column
+incident_types
+
+# arranging the data
+incident_types_arranged <- arrange(incident_types, desc(total))
+incident_types_arranged
+
+# pipeing it all
+incident_types_arranged <- df %>%
+  count(incidentType, name = "total") %>%
+  arrange(desc(total))
+incident_types_arranged
+
+# filtering
+incident_types_arranged_filtered <- incident_types_arranged %>%
+  filter(incidentType != "Biological")
+incident_types_arranged_filtered
+
+# filtering by multiple values
+incident_types_arranged %>%
+  filter(incidentType == "Tornado" | incidentType == "Hurricane")
+
+# using an array to filter
+disaster_array <- c("Tornado", "Hurricane", "Flood")
+incident_types_arranged %>%
+  filter(incidentType %in% disaster_array)
+
+# missing values
+head(is.na(df$incidentType))
+sum(is.na(df$incidentType))
+
+# using select()
+nrow(df)
+colnames(df)
+
+df_narrow <- df %>%
+  select(
+    femaDeclarationString, state, declarationDate,
+    fyDeclared, designatedArea, incidentType
+  )
+colnames(df_narrow)
+
+# using slice()
+rev_chron_floods <- df %>%
+  filter(incidentType == "Flood") %>%
+  arrange(desc(declarationDate)) %>%
+  slice(1:5)
+rev_chron_floods
+
+# using mutate()
+floods <- df %>%
+  filter(incidentType == "Flood")
+floods_adjusted <- floods %>%
+  mutate(year = year(declarationDate)) %>%
+  select(year, declarationDate, fyDeclared)
+floods_adjusted
+
+# using summarize()
+floods %>%
+  mutate(year = year(declarationDate)) %>%
+  group_by(year) %>%
+  summarize(total = n())
+
+# using case_when()
+floods_match <- floods_adjusted %>%
+  mutate(
+    year_match =
+      case_when(
+        year == fyDeclared ~ "Match",
+        TRUE ~ "Not a match"
+      )
+  ) %>%
+  group_by(year_match) %>%
+  summarize(total = n())
+floods_match
+
+# using pull()
+floods_match_count <- floods_match %>%
+  filter(year_match == "Not a match") %>%
+  pull(total)
+floods_match_count
+
+# getting the pct
+total_obs <- nrow(floods)
+floods_match_count / total_obs * 100
+round(floods_match_count / total_obs * 100, 1)
+
+# Which year had the most floods declarations?
+annual_floods <- df %>%
+  filter(incidentType == "Flood") %>%
+  mutate(year = year(declarationDate)) %>%
+  group_by(year) %>%
+  summarize(total = n()) %>%
+  arrange(desc(total))
+annual_floods
+
+# Which state has had the most flooding declared disasters?
+state_floods <- df %>%
+  filter(incidentType == "Flood") %>%
+  group_by(state) %>%
+  summarize(floods = n()) %>%
+  arrange(desc(floods))
+state_floods
+```
 
 # Linting
 
