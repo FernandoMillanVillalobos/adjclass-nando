@@ -153,6 +153,7 @@ library(remotes)
 library(lubridate)
 library(rvest)
 library(httr)
+library(tidycensus)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -349,6 +350,110 @@ state_floods <- df %>%
   summarize(floods = n()) %>%
   arrange(desc(floods))
 state_floods
+```
+# Module 2
+
+Let’s take a moment to talk about the significance of __tidy__ data. It’s the prefix to a lot of the packages and functions we’re using in this class. But it’s also a philosophy when approaching the structure of data.
+
+There’s an ideal structure for how to stack your data.
+
+And that’s with
+
+- Each __variable__ is in its own __column__
+- Each __case__ is in its own __row__
+- Each __value__ is in its own __cell__
+
+A join combines two data sets by adding the columns of one data set alongside the columns of the other, usually some of the rows of the second data set along with some rows of the first data set.
+
+A successful join requires something consistent between two data sets to match on: __keys__.
+
+The function that’s used most often is `left_join()` because you have one main data set you’d like to supplement with additional columns.
+
+The function works like this:
+
+If the two data frames you want to join have __the same name__:
+
+`left_join(data_frame1, data_frame2, by="shared_column_name")`
+
+If the two data frames you want to join have __different names__:
+
+`left_join(data_frame1, data_frame2, by=c("df1_column"="df_2_column"))`
+
+Notice that the `c()` argument in the second example is different from how we’ve used it before as combine. The `=` column matching operator is specific to `_join()` functions.
+
+Now there are a few other joins that have their uses.
+
+- `right_join()`
+- `full_join()`
+- `semi_join()`
+- `anti_join()`
+
+There are many wonderful functions in the __stringr__ package that you do things like detect patterns, see if strings start with with a pattern, or split or join or substitute strings.
+
+Nearly every news story that involves data analysis can be derived from one these formulas.
+
+- Difference
+  - x - y
+- Percent
+  - x / (x + y) * 100
+- Percent change
+  - (new - old)/old * 100
+- Per Capita
+  - x / population * some multiplier to raise result to a round number
+
+```{r, fig.cap=c("Module 1: Analyzing data with R"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
+knitr::include_graphics("input/pdf/ADJ_Class_2.pdf")  
+```
+
+```{r}
+census_api_key("02898df1b52d892523a165c11b8b9630e646f22b", install = TRUE, overwrite = TRUE)
+county_pop <- get_acs(geography = "county", variables = "B01003_001", year = 2020)
+df <- read_csv("https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.csv")
+
+# combining strings
+df_new <- df %>%
+  mutate(GEOID = str_c(fipsStateCode, fipsCountyCode))
+
+# joining data frames
+joined_new <- left_join(df_new, county_pop, by = "GEOID")
+glimpse(joined_new)
+
+# summarizing data
+joined_new %>%
+  group_by(incidentType) %>%
+  summarize(
+    declarations = n(),
+    avg_pop = mean(estimate, na.rm = T),
+    median_pop = median(estimate, na.rm = T)
+  ) %>%
+  arrange(desc(avg_pop)) %>%
+  slice(1:5)
+
+# wrangling data to compare the current months of 2022 with the past months (otherwise we’d be comparing 12 months of data in 2021 to 8 in 2022 which would be misleading)
+joined_new %>%
+  filter(state == "KY") %>%
+  filter(incidentType == "Flood") %>%
+  mutate(year = year(incidentBeginDate)) %>%
+  # extracting months
+  mutate(month = month(incidentBeginDate)) %>%
+  # only paying attention to months in current year of data set
+  filter(month %in% c(1:8)) %>%
+  filter(year == 2020 | year == 2021 | year == 2022) %>%
+  group_by(year) %>%
+  summarize(
+    declarations = n(),
+    avg_pop = mean(estimate, na.rm = T),
+    median_pop = median(estimate, na.rm = T)
+  )
+
+# getting percent
+# x / (x + y) * 100
+old <- 50 / (50 + 20) * 100
+new <- 20 / (20 + 50) * 100
+
+# getting percent change
+#  (new - old)/old * 100
+(new - old) / old * 100
 ```
 
 # Linting
