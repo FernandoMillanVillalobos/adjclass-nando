@@ -402,7 +402,7 @@ Nearly every news story that involves data analysis can be derived from one thes
   - x / population * some multiplier to raise result to a round number
 
 ```{r, fig.cap=c("Module 2: Joins and Strings"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
-knitr::include_graphics("input/pdf/ADJ_Class_2.pdf")  
+knitr::include_graphics("input/pdf/ADJ_Class_2.pdf")
 ```
 
 ```{r}
