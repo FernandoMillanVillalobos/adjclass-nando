@@ -381,6 +381,7 @@ If the two data frames you want to join have __different names__:
 
 Notice that the `c()` argument in the second example is different from how we’ve used it before as combine. The `=` column matching operator is specific to `_join()` functions.
 
+![Left join](input/img/left-join.gif) 
 Now there are a few other joins that have their uses.
 
 - `right_join()`
