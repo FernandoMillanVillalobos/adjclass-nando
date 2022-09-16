@@ -456,6 +456,77 @@ new <- 20 / (20 + 50) * 100
 (new - old) / old * 100
 ```
 
+Because you’re working with raw data intended for use by an agency for one thing, you’ll need to be able to reshape the data so you can do your own analysis, which will include math (such as difference, percents, percent change, and per capita).
+
+One advanced technique for transforming data you’ll learn in this section is from the __tidyr__ package.
+
+- pivot_wider()
+- pivot_longer()
+
+In R, you pivot data as in you reshape it. This way you can do math easier across all rows and easier to mutate and manipulate (and is also the preferable data structure for most data viz tools). However, if we wanted to make comparisons that would be difficult. So we need to turn this long data into wide data using `pivot_wider()`. What’s really powerful about `pivot_wider()` is the option to be able to draw values from more than one column.
+
+![Tidyr pivoting](input/img/tidyr-pivoting.gif)
+To use the pivot_longer() function which needs:
+
+1. What columns to focus on `cols=`
+2. What to name the column with the names of the columns `names_to=`
+3. What to name the column with the values `values_to=`
+
+```{r}
+# getting the data (long format)
+long_flood <- joined_new %>%
+  filter(incidentType == "Flood") %>%
+  mutate(year = year(incidentBeginDate)) %>%
+  # extracting months
+  mutate(month = month(incidentBeginDate)) %>%
+  # only paying attention to months in current year of data set
+  filter(month %in% c(1:8)) %>%
+  filter(year == 2020 | year == 2021 | year == 2022) %>%
+  group_by(year, state) %>%
+  summarize(
+    declarations = n(),
+    avg_pop = mean(estimate, na.rm = T),
+    median_pop = median(estimate, na.rm = T)
+  )
+head(long_flood)
+
+# pivoting the data (wide format)
+wide_flood <- long_flood %>%
+  select(-avg_pop, -median_pop) %>%
+  pivot_wider(
+    names_from = "year",
+    values_from = "declarations"
+  )
+head(wide_flood)
+
+# calculates the percent change between 2022 and 2021
+flood_percent_change <- wide_flood %>%
+  summarize(
+    `2020` = sum(`2020`, na.rm = T),
+    `2021` = sum(`2021`, na.rm = T),
+    `2022` = sum(`2022`, na.rm = T)
+  ) %>%
+  mutate(percent_change = (round((`2022` - `2021`) / `2021` * 100, 1)))
+flood_percent_change
+
+# drawing values from more than one column
+wide_flood_more <- long_flood %>%
+  select(-median_pop) %>%
+  pivot_wider(
+    names_from = "year",
+    values_from = c("declarations", "avg_pop")
+  )
+wide_flood_more
+
+# getting new data
+fires_wide <- df %>%
+  filter(incidentType == "Fire")
+fires_wide
+colnames(fires_wide)
+  # group_by(state) %>%
+  # summarize(floods = n()) %>%
+```
+
 # Linting
 
 The code in this RMarkdown is linted with the [lintr package](https://github.com/jimhester/lintr), which is based on the  [tidyverse style guide](http://style.tidyverse.org/). 
