@@ -154,6 +154,7 @@ library(lubridate)
 library(rvest)
 library(httr)
 library(tidycensus)
+library(ggthemes)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -520,12 +521,108 @@ wide_flood_more <- long_flood %>%
 wide_flood_more
 
 # getting new data
-fires_wide <- df %>%
+joined_new <- left_join(df_new, county_pop, by = "GEOID") %>%
+  mutate(year = year(incidentBeginDate)) %>%
+  count(incidentType, year, name = "total")
+
+annual_fires <- annual_disasters %>%
   filter(incidentType == "Fire")
+annual_fires
+
+fires_wide <- annual_fires %>% 
+  pivot_wider(
+    names_from = "year",
+    values_from = "total"
+  )
 fires_wide
-colnames(fires_wide)
-  # group_by(state) %>%
-  # summarize(floods = n()) %>%
+```
+The grammar of graphics lets you approach visualizations structurally, letting you combine and swap out graphical elements into figures that display data meaningfully.
+
+__Aesthetic__
+
+  - The visual property of a graph
+
+  - Position, shape, color, etc.
+
+__Data__
+
+  - A column in a data set
+  
+Here’s are the core components of the chart above:
+
+![Core components of a chart](input/img/core-components-of-a-chart.png)
+
+Here’s how the data was mapped in ggplot2 code from a data frame:
+
+![Data mapped in ggplot2](input/img/mapped-data-ggplot2.png)
+
+ggplot(data = DATA) +
+  GEOM_FUNCTION(mapping = aes(AESTHETIC MAPPINGS))
+
+![Grammatical layers](input/img/grammatical-layers.png)
+![Possible aesthetics](input/img/possible-aesthetics.png)
+![Possible geoms](input/img/possible-geoms.png)
+Facets show subplots for different subsets of data. The table below shows all the different ways you can use facets– you can break it out by one extra variable or even two.
+
+![Different ways of facets](input/img/facets.png)
+We can add more customizations to the chart.
+
+![Labels](input/img/labels.png)
+Use themes to change the appearance of anything in the plot. While you can customize every font, color, gradient, etc, you can set these styles up ahead of time or use the ones others have created. There are many built-in themes. Make theme adjustments with `theme()`.
+
+![Themes](input/img/themes.png)
+
+```{r}
+# plotting the data
+ggplot(data = annual_fires) +
+  geom_col(aes(x = year, y = total))
+
+# scoping the years to 2010 - 2022
+ggplot(data = annual_fires) +
+  geom_col(aes(x = year, y = total)) +
+  scale_x_continuous(limits = c(2010, 2022), breaks = 2010:2022)
+
+# using facets
+annual_disasters %>%
+  filter(incidentType %in% c("Hurricane", "Fire", "Flood")) %>%
+  ggplot() +
+  geom_col(mapping = aes(x = year, y = total)) +
+  scale_x_continuous(limits = c(2010, 2022), breaks = 2010:2022) +
+  facet_wrap(vars(incidentType), ncol = 1)
+
+# customizing charts
+annual_disasters %>%
+  filter(incidentType %in% c("Hurricane", "Fire", "Flood")) %>%
+  ggplot() +
+  geom_col(mapping = aes(x = year, y = total)) +
+  scale_x_continuous(limits = c(2010, 2022), breaks = 2010:2022) +
+  facet_wrap(vars(incidentType), ncol = 1) +
+  labs(
+    title = "Disaster declarations since 2010",
+    x = "",
+    y = "Total",
+    caption = "Data: FEMA"
+  )
+
+# using themes
+annual_disasters %>%
+  filter(incidentType %in% c("Hurricane", "Fire", "Flood")) %>%
+  ggplot() +
+  geom_col(mapping = aes(x = year, y = total)) +
+  scale_x_continuous(limits = c(2010, 2022), breaks = 2010:2022) +
+  facet_wrap(vars(incidentType), ncol = 1) +
+  labs(
+    title = "Disaster declarations since 2010",
+    x = "",
+    y = "Total",
+    caption = "Data: FEMA"
+  ) +
+  # theme_minimal() +
+  # bbc_style()
+  theme_economist() +
+  theme(
+    plot.title = element_text(face = "italic")
+  )
 ```
 
 # Linting
