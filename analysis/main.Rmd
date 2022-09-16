@@ -522,7 +522,9 @@ wide_flood_more
 
 # getting new data
 joined_new <- left_join(df_new, county_pop, by = "GEOID") %>%
-  mutate(year = year(incidentBeginDate)) %>%
+  mutate(year = year(incidentBeginDate))
+  
+annual_disasters <- joined_new %>%
   count(incidentType, year, name = "total")
 
 annual_fires <- annual_disasters %>%
