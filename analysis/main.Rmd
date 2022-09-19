@@ -156,6 +156,7 @@ library(httr)
 library(tidycensus)
 library(ggthemes)
 library(doParallel)
+library(utils)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -651,6 +652,22 @@ if (logical test for true or false) {
 
 When we run scripts and loops currently, they’re done one at a time in a serial form. The next task won’t start until the one before it finishes. But modern computers have multiple cores which enables multiple computations to take place at the same time. There are many ways to run loops in parallel in R, but we’re going to use a package called __doParallel__. To see how many cores your computer’s working with use `detectCores()`. To tell R how many cores we want to use use `registerDoParallel(cores=X)`. One valid criticism about R is that because data is stored into memory, there is an actual limit to what processes it can run. But loops and parallelization can allow you to run analyses on smaller slices of the data before joining.
 
+An API stands for an Application Programming Interface and is an intermediary between a data set and others. It’s a way for people outside someone’s system to query and ask for specific slices of data from the system without getting complete access to their system. It’s like a drive-thru menu at a fast food restaurant.
+
+![APIs explained](input/img/api-explained.png)
+The basic steps of pulling data from APIs:
+
+- Installed the “jsonlite” packages (later on you may need the __httr__ package)
+- Make a “GET” request to the API to pull raw data
+- Parse that data from its raw form through JavaScript Object Notification (JSON) into a usable format
+- Write a loop to “page” through that data and retrieve the full data set
+
+Once one has dissected the anatomy of an API, you can see how easy it is to build them! Basically anybody with an internet connection, an authorization token, and who knows the grammar of the API can access it. Most APIs are published with extensive documentation to help you understand the available options and parameters. There may be more complicated ways to access APIs that involve including headers. We get API requests into R simply using the R package __jsonlite__ and use the function `fromJSON()`. The __jsonlite__ package just transformed all the squiggles and commas from what you saw in the browser output and gave you a clean looking data frame. If we want multiple combinations of data we can use loops. URLs do not like spaces. URLs require special characters like spaces, quotation marks, and percent signs to be converted into UTF-encoded values. Your browser, if it loaded the URL, automatically replaced the space with a special character `%20`. The function `URLencode()` from the __utils__ package should set this up for us.
+
+```{r, fig.cap=c("Module 2: Loops"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
+knitr::include_graphics("input/pdf/ADJ_Class_3.pdf")
+```
+
 ```{r}
 # basic for loop structure
 for (i in 1:10) {
@@ -730,8 +747,45 @@ system.time(
     read_csv(sheets[i])
   }
 )
-```
 
+# getting JSON requests from APIs
+url <-"https://arcos-api.ext.nile.works/v1/combined_county_annual?key=WaPo&county=Mingo&state=WV"
+mingo <- fromJSON(url)
+mingo
+
+# getting more data
+base <- "https://arcos-api.ext.nile.works/v1/combined_county_annual"
+county <- "Palm Beach"
+county <- URLencode(county)
+state <- "FL"
+info_key <- "key=WaPo"
+
+API_URL <- str_c(base, "?county=", county, "&state=", state, "&", info_key)
+
+fromJSON(API_URL)
+
+# looping to make an API call
+counties <- c("Broward", "Miami-Dade", "Palm Beach")
+base <- 'https://arcos-api.ext.nile.works/v1/combined_county_annual'
+
+for (i in 1:length(counties)) {
+  county <- counties[i]
+  county <- URLencode(county)
+  state <- "FL"
+  info_key <- "key=WaPo"
+  API_URL <- str_c(base, "?county=", county, "&state=", state, "&", info_key)
+
+  df <- fromJSON(API_URL)
+
+  if (i == 1) {
+    tidy_df <- df
+  } else {
+    tidy_df <- rbind(tidy_df, df)
+  }
+}
+
+tidy_df
+```
 # Linting
 
 The code in this RMarkdown is linted with the [lintr package](https://github.com/jimhester/lintr), which is based on the  [tidyverse style guide](http://style.tidyverse.org/). 
