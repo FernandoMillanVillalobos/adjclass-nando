@@ -155,6 +155,7 @@ library(rvest)
 library(httr)
 library(tidycensus)
 library(ggthemes)
+library(doParallel)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -219,7 +220,7 @@ knitr::read_chunk("scripts/outliers.R")
 source("scripts/outliers.R")
 ```
 
-# Module 1
+# Module 1: Exploring data
 
 In this lesson, we’re going to start exploring data with the package dplyr.
 
@@ -352,7 +353,7 @@ state_floods <- df %>%
   arrange(desc(floods))
 state_floods
 ```
-# Module 2
+# Module 2: Joins and Strings
 
 Let’s take a moment to talk about the significance of __tidy__ data. It’s the prefix to a lot of the packages and functions we’re using in this class. But it’s also a philosophy when approaching the structure of data.
 
@@ -625,6 +626,110 @@ annual_disasters %>%
   theme(
     plot.title = element_text(face = "italic")
   )
+```
+# Module 3: Loops
+
+We create loops to simplify repetitive tasks. Using `i` is arbitrary. You could use any letter or object. But it does take the value of what shows up after `in`. If you want to see how many objects there are in an array, use `length()` and if you want to see how many rows there are in a data frame, use `nrow()` and if you want to see how many columns there are in a data frame, use `ncol()`. Sometimes you’re going to get data split out over several spreadsheets. Loops are a great way to simplify things. 
+
+To make a loop work on importing spreadsheets, you’ll need to know:
+
+1. How many times you need to run the loop
+2. The names of the files
+3. Figure out what you want to do with the files
+
+First, we need to get the list of spreadsheets that we want to import. We’ll use the function called `list.files()`. Then we use a loop structure where we can use the sheets[i] to refer to specific sheets in the list.
+
+This is the basic structure for if statements. You need a () and {}. You can do multiple tests, too.
+
+if (logical test for true or false) { 
+      do something 
+   } else if (logical test for true or false) { 
+   do something else 
+   } else { 
+   do this if prior logical tests failed 
+   }
+
+When we run scripts and loops currently, they’re done one at a time in a serial form. The next task won’t start until the one before it finishes. But modern computers have multiple cores which enables multiple computations to take place at the same time. There are many ways to run loops in parallel in R, but we’re going to use a package called __doParallel__. To see how many cores your computer’s working with use `detectCores()`. To tell R how many cores we want to use use `registerDoParallel(cores=X)`. One valid criticism about R is that because data is stored into memory, there is an actual limit to what processes it can run. But loops and parallelization can allow you to run analyses on smaller slices of the data before joining.
+
+```{r}
+# basic for loop structure
+for (i in 1:10) {
+  print(i)
+}
+
+# using length()
+states <- c("Texas", "Florida", "California", "New York", "Indiana", "Maine")
+
+for (arbitrary_name in 1:length(states)) {
+  print(arbitrary_name)
+}
+
+for (i in 1:length(states)) {
+  print(str_c("array object ", i, " is ", states[i]))
+}
+
+# getting the data
+df1 <- read_csv("input/covid_data/2020-01.csv")
+df2 <- read_csv("input/covid_data/2020-02.csv")
+df <- rbind(df1, df2) %>% 
+  glimpse()
+
+# getting the list of data files
+sheets <- list.files("input/covid_data", full.names = TRUE)
+sheets
+length(sheets)
+
+# importing the data in an iterative way (but not saving it!)
+for (i in 1:length(sheets)) {
+  read_csv(sheets[i])
+  print(sheets[i])
+}
+
+# importing the data and saving as one big data frame
+for (i in 1:length(sheets)) {
+  df <- read_csv(sheets[i])
+
+  # if first time looping, save df as big_df
+  if (i == 1) {
+    big_df <- df
+  } else {
+    # if not the first time looping, then rbind it to big_df
+    big_df <- rbind(big_df, df)
+  }
+
+  print(nrow(big_df))
+}
+glimpse(big_df)
+
+# detecting cores
+detectCores()
+
+# how many cores
+registerDoParallel(cores = 4)
+
+# checking system time
+system.time(
+  for (i in 1:length(sheets)) {
+    df <- read_csv(sheets[i])
+
+    # if first time looping, save df as big_df
+    if (i == 1) {
+      big_df <- df
+    } else {
+      # if not the first time looping, then rbind it to big_df
+      big_df <- rbind(big_df, df)
+    }
+
+    print(nrow(big_df))
+  }
+)
+
+# checking in pararell
+system.time(
+  big_df <- foreach(i = 1:length(sheets), .combine = rbind) %dopar% {
+    read_csv(sheets[i])
+  }
+)
 ```
 
 # Linting
