@@ -628,6 +628,7 @@ annual_disasters %>%
     plot.title = element_text(face = "italic")
   )
 ```
+
 # Module 3: Loops
 
 We create loops to simplify repetitive tasks. Using `i` is arbitrary. You could use any letter or object. But it does take the value of what shows up after `in`. If you want to see how many objects there are in an array, use `length()` and if you want to see how many rows there are in a data frame, use `nrow()` and if you want to see how many columns there are in a data frame, use `ncol()`. Sometimes you’re going to get data split out over several spreadsheets. Loops are a great way to simplify things. 
