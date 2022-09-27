@@ -144,6 +144,7 @@ library(tidylog)
 library(jsonlite)
 library(lintr)
 library(rmarkdown)
+library(sf)
 library(rio)
 library(cowplot)
 library(extrafont)
@@ -157,6 +158,11 @@ library(tidycensus)
 library(ggthemes)
 library(doParallel)
 library(utils)
+library(vtable)
+library(tigris)
+library(viridis)
+library(biscale)
+library(svglite)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -239,6 +245,7 @@ In this lesson, we’re going to start exploring data with the package dplyr.
 ```{r, fig.cap=c("Module 1: Analyzing data with R"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
 knitr::include_graphics("input/pdf/ADJ_Class_1.pdf")  
 ```
+
 ```{r}
 # getting the data https://www.fema.gov/openfema-data-page/disaster-declarations-summaries-v2
 df <- read_csv("https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.csv") %>% 
@@ -900,6 +907,436 @@ url <- "https://sinclairresources.s3.amazonaws.com/assets/sbgi/MetaverseStationD
 sinclair <- fromJSON(url)
 sinclair
 ```
+# Module 4: Statistics
+
+There are so many different statistical methods we could spend several months learning but only a handful that have been used often by journalists. Some of the most common basic descriptive stats you can do is calculating __mean__ and __median__. The __percent__ is another form of descriptive statistics common in data journalism. Another statistical measure is the __standard deviation__ which determines how spread out the numbers are. The formula is essentially the square root of the Variance. And the variance is the average of the squared differences from the Mean. But the function we’ll use is simply `sd()`. The function to check for a correlation between two arrays is `cor()`. The base R function `cor()` allows you to compute correlations using Pearson, Kendall tau or Spearman rho. Some authors consider a strong correlation over [.6, -.6] and over [.8/, -.8] is a very strong correlation.
+
+If you’re comparing numbers with numbers, it’s easier to turn one set of numbers into quantiles, for example taking a range of numbers and grouping them into “low”, “medium”, or “high” categories. This way you can create crosstabs and get around having to use correlations in your narrative. Quantiles are a range from any value to any other value. Percentiles and Quartiles are simply types of Quantiles.
+
+- 4-quantiles are called quartiles
+- 5-quintiles are called quintiles
+- 10-quantiles are called deciles
+- 100-quantiles are called percentiles
+
+To group numbers into sections, we’ll use the `ntile()` function. The way `ntile()` works is the first argument is the column you’d like to evaluate and the second argument is the number of groups you’d like. The `quantile()` function is nearly the same thing but takes percentiles as inputs. Because we’re creating 4 groups, we’ll add a column called quartile. Now, you can use `case_when()` to create a new column for lowest salary, lower salary, higher salary, and highest salary based on the quartile column you created. What if you joined median income for zip codes from the Census to this data? If you joined additional numerical data to this you could use `group_by()` on the quartile column to calculate the percent of workers living in poor or rich neighborhoods. Or perhaps even those who live outside Boston city borders? Anyway, that’s the benefit of adding quartiles via mutate.
+
+Sometimes it’s important to account for confounding factors that may better explain relationships between data points. To prepare our data for regression analysis we can start for grouping some variables. Then we can create a new variable for the natural log of our variable of interest. Essentially, logs are a simpler way to represent large numbers. For example, 10,000,000,000 can be written as 10¹⁰. The new function we’ll use is predictably called `log()` and we’ll pass it the argument of how many exponents we want (just 1). The time creating models is like 85% cleaning and prepping the data. The base R function `lm()` perform linear regression, assessing the relationship between numeric response and explanatory variables that are assumed to have a linear relationship. Provide the equation as a formula, with the response and explanatory column names separated by a tilde `~`. Also, specify the data set to `data =`. Define the model results as an R object, to use later. First, we’ll run the simplest possible model with no controls at all, regressing salary only on a male-female gender dummy. This is equivalent to calculating the approximate overall percentage pay gap between men and women — what we call the “unadjusted” pay gap. We’re looking for the relationship between `log_base` and `gender`. Then use the `summary()` function to output the results. A coefficient of 0.095 means there is approximately 9.5 percent “unadjusted” gender pay gap in this theoretical company. In a story, you would write that men on average earn about 9.5 percent more than women on average in this company.
+
+Mapping is really fun to do in R. You don’t need to pay crazy amounts of money to use ArcGIS. And while QGIS is excellent it has the drawbacks of most click-buttons-to-create programs: You can’t write a script to process the data, transform it, and visualize it in multiple ways. We’re going to use the __sf__ package that will essentially let you treat maps like a geometry in __ggplot2__. It can be as simple as creating a bar chart or line chart.
+
+So __sf__ stands for Simple Features which is a set of standards the community have agreed upon to create a uniform way to store types of spatial data with different geometries, like points, lines, polygons, etc. What this means is when you import maps into R, it will be treated like a data frame. With rows and columns that you can summarize or join with other data sets for enhanced analysis.Bringing in a shape file is as similar as importing a csv! It just as an extra column called geometry.
+
+If you had the shapefiles locally, you could import it in using `st_read()` from the package __sf__. The geometry column says “MULTIPOLYGON”. Polygon is another word for shape. The geometry function for a polygon is `geom_sf()`. It is kind of a process to download a shapefile, locate it locally, and then import it. Because this is R, it´s possible that someone’s already come up with a package to download the most-common per-country borders from the cloud. The __tigris__ package can download the shapefiles for counties and work with FEMA data for USA. For European countries, you can use the __giscoR__ package, for Brazil, there’s the __geobr__ package, etc. To start out with, we’ll load the library and call in the shapes of all the states. Once we have the shapes, we need to bring in the data to join to it so we can make for instance a choropleth. The choropleths are univarate maps, as in it visualizes one column of data. On the other hand a bivariate map involves visualizing two columns of data. This is pretty rare and difficult to make because it requires calculating quartiles of data and the relationship between the two variables.
+
+![Shapefiles from Tigris package](input/img/tigris_functions.png)
+
+```{r}
+# getting the data
+# candles <- read_csv("input/scented.csv")
+# glimpse(candles)
+# 
+# # calculating the mean and the median
+# candles %>%
+#   summarize(
+#     avg_rating = mean(Rating),
+#     median_rating = median(Rating)
+#   )
+# 
+# # calculating the distribution of the rating percent
+# candles %>%
+#   group_by(Rating) %>%
+#   summarize(total = n()) %>%
+#   mutate(percent = round(total / sum(total) * 100, 1))
+# 
+# # calculating which 10 months had the greatest deviation (sd())
+# candles_monthly <- candles %>%
+#   mutate(year = year(Date)) %>%
+#   mutate(month = month(Date)) %>%
+#   group_by(year, month) %>%
+#   summarize(
+#     ratings = n(),
+#     avg_rating = mean(Rating, na.rm = T),
+#     sd_rating = sd(Rating, na.rm = T)
+#   ) %>%
+#   ungroup() %>%
+#   arrange(desc(sd_rating)) %>%
+#   filter(year > 2018) %>%
+#   slice(1:10)
+# 
+# candles_monthly
+# 
+# # calculating the percent of reviews by month that mention not having a smell
+# mutate(no_scent = case_when(
+#   str_detect(Review, "[Nn]o scent") ~ 1,
+#   str_detect(Review, "[Nn]o smell") ~ 1,
+#   str_detect(Review, "[Dd]oes not smell like") ~ 1,
+#   str_detect(Review, "[Dd]oesn't smell like") ~ 1,
+#   str_detect(Review, "[Cc]an't smell") ~ 1,
+#   str_detect(Review, "[Cc]annot smell") ~ 1,
+#   str_detect(Review, "[Ff]aint smell") ~ 1,
+#   str_detect(Review, "[Ff]aint scent") ~ 1,
+#   str_detect(Review, "[Dd]on't smell") ~ 1,
+#   str_detect(Review, "[Ll]ike nothing") ~ 1,
+#   TRUE ~ 0
+# ))
+# 
+# scented_timeline_monthly1
+# 
+# # calculating the percent for each month and year
+# scented_timeline_monthly2 <- scented_timeline_monthly1 %>%
+#   mutate(
+#     year = year(Date),
+#     month = month(Date)
+#   ) %>%
+#   # let's aggregate around year and month
+#   group_by(year, month) %>%
+#   # we just need to add up the 1s in no_scent and count up the total reviews with n()
+#   summarize(no_scent = sum(no_scent), reviews = n()) %>%
+#   # and do some math
+#   mutate(percent = no_scent / reviews * 100) %>%
+#   select(year, month, value = percent) %>%
+#   mutate(type = "percent no smell") %>%
+#   ungroup() %>%
+#   mutate(row = row_number())
+# 
+# scented_timeline_monthly2
+# 
+# # plotting it
+# ggplot(data = scented_timeline_monthly2, aes(x = row, y = value)) +
+#   geom_line() +
+#   geom_smooth() +
+#   theme_minimal() +
+#   labs(
+#     title = "Percent of Yankee Candle reviews mentioning no smell",
+#     y = "Percent", x = ""
+#   )
+
+# getting daily Covid-19 case counts 
+covid <- read_csv("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
+
+covid_long <- covid %>%
+  pivot_longer(cols = 12:ncol(covid), names_to = "date", values_to = "cases") %>%
+  mutate(date = mdy(date)) %>%
+  group_by(FIPS) %>%
+  arrange(date) %>%
+  # this is a way to create a value from the previous value (lagged)
+  mutate(positive = c(cases[1], diff(cases))) %>%
+  group_by(date) %>%
+  summarize(value = sum(positive, na.rm = T)) %>%
+  mutate(type = "Covid cases")
+
+covid_long
+
+# monthly daily cases adjusted for 1000000
+covid_long_monthly <- covid_long %>%
+  mutate(
+    year = year(date),
+    month = month(date)
+  ) %>%
+  group_by(year, month) %>%
+  summarize(value = sum(value, na.rm = T) / 1000000) %>%
+  mutate(type = "Covid cases") %>%
+  ungroup() %>%
+  mutate(row = row_number())
+
+covid_long_monthly
+
+# comparing trend lines for both data sets
+# This only works because we were careful to make sure the column names match
+# from the different data sets
+# monthly <- rbind(covid_long_monthly, scented_timeline_monthly2)
+# 
+# monthly %>%
+#   ggplot(aes(x = row, y = value)) +
+#   geom_line() +
+#   facet_wrap(vars(type), scale = "free_y") +
+#   geom_smooth()
+# 
+# # another way of plotting it
+# monthly %>%
+#   ggplot(aes(x = row, y = value, color = type)) +
+#   geom_line() +
+#   geom_smooth() +
+#   theme_minimal() +
+#   labs(title = "Covid cases versus Amazon 'no scent' candle reviews")
+# 
+# # reshaping data from long to wide to check correlation
+# monthly_wide <- monthly %>%
+#   pivot_wider(names_from = "type", values_from = "value") %>%
+#   filter(!is.na(`percent no smell`))
+# 
+# glimpse(monthly_wide)
+
+# getting the data
+boston_salaries <- read_csv("input/boston.csv")
+glimpse(boston_salaries)
+
+# this makes it random but consistent for all of us
+set.seed(2022)
+
+# getting randomly selected sample (16)
+boston16 <- boston_salaries %>% 
+  sample_n(16)
+
+boston16
+
+# using the kable() function from the knitr package to present the data frame
+boston16 %>%
+  select(TOTAL_GROSS, POSTAL) %>%
+  arrange(TOTAL_GROSS) %>%
+  knitr::kable()
+
+# grouping quartiles with ntile()
+boston16 %>%
+  select(TOTAL_GROSS, POSTAL) %>%
+  arrange(TOTAL_GROSS) %>%
+  mutate(quartile = ntile(TOTAL_GROSS, 4)) %>%
+  knitr::kable()
+
+# making percentiles with quantile()
+boston16 %>%
+  select(TOTAL_GROSS) %>%
+  arrange(TOTAL_GROSS) %>%
+  summarize(value = quantile(TOTAL_GROSS, c(0, .25, .5, .75, 1))) %>%
+  mutate(
+    percentile = c(0, 25, 50, 75, 100),
+    quartile = c(0, 1, 2, 3, 4)
+  ) %>%
+  select(percentile, quartile, value)
+
+# getting the data
+salaries = read_csv("input/salary_data.csv")
+glimpse(salaries)
+
+# grouping employee ages
+# Base pay summary stats.
+salaries_adjusted1 <- salaries %>%
+  # Age brackets
+  mutate(age_bin = case_when(
+    age < 25 ~ 1, # Below age 25
+    age >= 25 & age < 35 ~ 2, # Age 25-34
+    age >= 35 & age < 45 ~ 3, # Age 25-34
+    age >= 45 & age < 55 ~ 4, # Age 25-34
+    age >= 55 ~ 5 # Age 25-34
+  ))
+
+salaries_adjusted1
+
+# calculating logs
+salaries_adjusted2 <- salaries_adjusted1 %>%
+  # Total compensation
+  mutate(total_pay = basePay + bonus) %>%
+  # Log of compensation
+  mutate(
+    log_base = log(basePay, base = exp(1)),
+    log_total = log(total_pay, base = exp(1)),
+    # Adds 1 to allow for log of 0 bonus values.
+    log_bonus = log(bonus + 1, base = exp(1))
+  )
+
+salaries_adjusted2
+
+# adding a new numerical variable to change Male to 1 and Female to 0
+salaries_adjusted3 <- salaries_adjusted2 %>%
+  # Make flags
+  mutate(male = case_when(
+    gender == "Male" ~ 1,
+    TRUE ~ 0
+  ))
+
+glimpse(salaries_adjusted3)
+
+# looking at summarized statistics with st() function from vtable package
+st(salaries_adjusted3)
+
+# calculating mean and median for base pay by gender
+summary_base <- salaries_adjusted3 %>%
+  group_by(gender) %>%
+  summarise(
+    meanBasePay = mean(basePay, na.rm = TRUE),
+    medianBasePay = median(basePay, na.rm = TRUE),
+    employees = n()
+  )
+
+summary_base
+
+# looking at job clustering between gender
+unadjusted_jobs <- salaries_adjusted3 %>%
+  group_by(jobTitle, gender) %>%
+  summarise(
+    meanTotalPay = mean(total_pay, na.rm = TRUE),
+    employees = n()
+  )
+
+unadjusted_jobs
+
+# calculating linear regression
+# No controls. ("unadjusted" pay gap.)
+lm_gender <- lm(log_base ~ gender, data = salaries_adjusted3)
+summary(lm_gender)
+
+#  we’ll run a more complete model that adds in variables for employee characteristics like highest education, years of experience and performance evaluation scores by adding "human capital" controls (performance evals, age and education).
+lm_humancapital <- lm(log_base ~ gender + perfEval + age_bin + edu, data = salaries_adjusted3)
+summary(lm_humancapital)
+
+# adding all controls ("adjusted" pay gap)
+lm_allcontrols <- lm(log_base ~ gender + perfEval + age_bin + edu +
+  dept + seniority + jobTitle,
+data = salaries_adjusted3
+)
+summary(lm_allcontrols)
+
+# testing for differences in the gender pay gap among departments or job titles 
+# All controls with job title interaction terms.
+job_results <- lm(log_base ~ male * jobTitle + perfEval + age_bin + edu + seniority + dept, data = salaries_adjusted3)
+# Publish a clean table of regression results.
+summary(job_results)
+
+# Download the shapefile. (note that I store it in a folder called DATA. You have to change that if needed.)
+# download.file("http://thematicmapping.org/downloads/TM_WORLD_BORDERS_SIMPL-0.3.zip", destfile = "input/world_shape_file.zip")
+# You now have it in your current working directory, have a look!
+
+# Unzip this file. You can do it with R (as below), or clicking on the object you downloaded.
+# unzip("input/world_shape_file.zip", exdir = "input")
+#  -- > You now have 4 files. One of these files is a .shp file! (TM_WORLD_BORDERS_SIMPL-0.3.shp)
+world <- st_read("input/TM_WORLD_BORDERS_SIMPL-0.3.shp")
+glimpse(world)
+
+# USA states (with tigris package)
+us_states <- states(cb = TRUE, resolution = "20m") %>%
+  shift_geometry()
+glimpse(us_states)
+
+# mapping USA states
+ggplot(us_states) + 
+  geom_sf()
+
+# mapping USA counties
+us_counties <- counties(cb = TRUE, resolution = "20m") %>%
+     shift_geometry()
+glimpse(us_counties)
+
+ggplot(us_counties) + 
+  geom_sf() +
+  theme_void()
+
+# getting the data
+df <- read_csv("https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.csv")
+df_new <- df %>%
+  mutate(GEOID = str_c(fipsStateCode, fipsCountyCode))
+fema_counties <- left_join(df_new, county_pop, by = "GEOID")
+glimpse(fema_counties)
+
+# summarizing the data by counting up the number of disasters by county
+fema_counties_count <- fema_counties %>%
+  filter(incidentType != "Biological") %>%
+  group_by(GEOID) %>%
+  summarize(disasters = n())
+fema_map <- left_join(us_counties, fema_counties_count)
+glimpse(fema_map)
+
+# plotting a choropleth
+fema_map %>%
+  ggplot() +
+  geom_sf(aes(fill = disasters), color = NA) + # getting rid of the state borders
+  scale_fill_viridis(direction = -1) + # reversing the order
+  theme_void()
+
+# plotting hurricanes in Lousiana
+fema_map %>%
+  filter(STUSPS == "LA") %>%
+  ggplot() +
+  geom_sf(aes(fill = disasters), color = NA) +
+  scale_fill_viridis(direction = -1) +
+  theme_void() +
+  labs(title = "Hurricane declared disasters since 1954")
+
+# counting up Fire disaster declarations by county
+fema_counties_count_fi <- fema_counties %>%
+  filter(incidentType == "Fire") %>%
+  mutate(year = year(incidentBeginDate)) %>%
+  group_by(GEOID, year) %>%
+  summarize(disasters = n())
+
+fema_map_fi <- left_join(us_counties, fema_counties_count_fi)
+
+glimpse(fema_map_fi)
+
+fema_map_fi %>%
+  filter(STUSPS == "CA") %>%
+  filter(year %in% c(2017:2022)) %>%
+  ggplot() +
+  geom_sf(data = filter(us_states, STUSPS == "CA"), fill = "gray", color = NA) +
+  geom_sf(aes(fill = disasters), color = NA) +
+  scale_fill_viridis(direction = -1, na.value = "red") +
+  facet_wrap(vars(year)) +
+  theme_void()
+
+# knowing areas that have been hit by Hurricanes most frequently in relation to population
+disaster_count <- fema_counties %>%
+  # filter county data to just hurricanes
+  filter(incidentType == "Hurricane") %>%
+  mutate(year = year(incidentBeginDate)) %>%
+  # We want to focus on the years between 2017 and 2022
+  filter(year %in% c(2017:2022)) %>%
+  # Grouping by county IDS so we can join with mapping data easily
+  group_by(GEOID) %>%
+  summarize(total = n())
+
+# start with the map of counties and join the disaster count
+disaster_counties <- left_join(us_counties, disaster_count) %>%
+  select(-NAME)
+
+# Then join the population count to the counties data
+disaster_counties <- left_join(disaster_counties, county_pop)
+glimpse(disaster_counties)
+
+# looking at population (estimate) and hurricanes (total) by county
+bi_df <- bi_class(disaster_counties, x = estimate, y = total, style = "quantile", dim = 3)
+glimpse(bi_df) # in the new column bi_class “2-1” means the first variable is in the 2nd quartile for one variable and the 1st quartile for the other variable. And then there are NAs because there aren’t enough data to determine a quartile (Those are probably counties with a history of zero hurricanes).
+
+# plotting the map
+map <- ggplot() +
+  geom_sf(
+    data = bi_df, mapping = aes(fill = bi_class),
+    # changing the border color to white and the size of the
+    # border lines to .1
+    # and hiding the legend
+    color = "white", size = 0.1, show.legend = FALSE
+  ) +
+  bi_scale_fill(pal = "GrPink", dim = 3) +
+  labs(
+    title = "Hurricanes & Population"
+  ) +
+  bi_theme()
+map
+
+# adding a legend
+legend <- bi_legend(
+  pal = "GrPink",
+  dim = 3,
+  xlab = "+ population ",
+  ylab = "+ disasters ",
+  size = 8
+)
+legend
+
+# final map
+finalPlot <- ggdraw() +
+  draw_plot(map, 0, 0, 1, 1) +
+  draw_plot(legend, 0.82, .2, 0.2, 0.2)
+finalPlot
+
+# saving plots
+#ggsave(finalPlot, "test.svg", device="svg")
+# save_plot("output/test.png", finalPlot, base_height = NULL, base_width = 12)
+#install.packages("svglite") to make this work
+# save_plot("output/test.svg", finalPlot, base_height = NULL, base_width = 12)
+```
+```{r, fig.cap=c("Module 4: Statistics"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
+knitr::include_graphics("input/pdf/ADJ_Class_4.pdf")
+```
+
 # Linting
 
 The code in this RMarkdown is linted with the [lintr package](https://github.com/jimhester/lintr), which is based on the  [tidyverse style guide](http://style.tidyverse.org/). 
