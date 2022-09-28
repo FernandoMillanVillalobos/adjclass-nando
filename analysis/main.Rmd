@@ -973,10 +973,10 @@ candles_monthly <- candles %>%
   filter(year > 2018) %>%
   slice(1:10)
 
-candles_monthly
+head(candles_monthly)
 
 # calculating the percent of reviews by month that mention not having a smell
-scented_timeline_monthly1 <-  candles_monthly %>% 
+scented_timeline_monthly1 <- candles %>% 
   mutate(no_scent = case_when(
   str_detect(Review, "[Nn]o scent") ~ 1,
   str_detect(Review, "[Nn]o smell") ~ 1,
@@ -991,7 +991,7 @@ scented_timeline_monthly1 <-  candles_monthly %>%
   TRUE ~ 0
 ))
 
-scented_timeline_monthly1
+head(scented_timeline_monthly1)
 
 # calculating the percent for each month and year
 scented_timeline_monthly2 <- scented_timeline_monthly1 %>%
@@ -1010,7 +1010,7 @@ scented_timeline_monthly2 <- scented_timeline_monthly1 %>%
   ungroup() %>%
   mutate(row = row_number())
 
-scented_timeline_monthly2
+head(scented_timeline_monthly2)
 
 # plotting it
 ggplot(data = scented_timeline_monthly2, aes(x = row, y = value)) +
@@ -1036,7 +1036,7 @@ covid_long <- covid %>%
   summarize(value = sum(positive, na.rm = T)) %>%
   mutate(type = "Covid cases")
 
-covid_long
+head(covid_long)
 
 # monthly daily cases adjusted for 1000000
 covid_long_monthly <- covid_long %>%
@@ -1050,7 +1050,7 @@ covid_long_monthly <- covid_long %>%
   ungroup() %>%
   mutate(row = row_number())
 
-covid_long_monthly
+head(covid_long_monthly)
 
 # comparing trend lines for both data sets
 # This only works because we were careful to make sure the column names match
@@ -1089,7 +1089,7 @@ set.seed(2022)
 boston16 <- boston_salaries %>% 
   sample_n(16)
 
-boston16
+head(boston16)
 
 # using the kable() function from the knitr package to present the data frame
 boston16 %>%
