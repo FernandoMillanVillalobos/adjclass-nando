@@ -540,11 +540,21 @@ annual_fires <- annual_disasters %>%
   filter(incidentType == "Fire")
 annual_fires
 
-fires_wide <- annual_fires %>% 
-  pivot_wider(
-    names_from = "year",
-    values_from = "total"
-  )
+# getting the data
+df <- read_csv("https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.csv")
+county_pop <- read_csv("https://www.andrewbatran.com/data/county_population.csv")
+
+df_new <- df %>%
+  mutate(GEOID = str_c(fipsStateCode, fipsCountyCode))
+
+joined_new <- left_join(df_new, county_pop, by = "GEOID")
+
+fires_wide <- joined_new %>%
+  filter(incidentType == "Fire") %>%
+  mutate(year = year(incidentBeginDate)) %>%
+  count(year, NAME) %>%
+  filter(!is.na(NAME)) %>%
+  pivot_wider(names_from = "year", values_from = n)
 fires_wide
 ```
 The grammar of graphics lets you approach visualizations structurally, letting you combine and swap out graphical elements into figures that display data meaningfully.
@@ -932,84 +942,85 @@ If you had the shapefiles locally, you could import it in using `st_read()` from
 
 ```{r}
 # getting the data
-# candles <- read_csv("input/scented.csv")
-# glimpse(candles)
-# 
-# # calculating the mean and the median
-# candles %>%
-#   summarize(
-#     avg_rating = mean(Rating),
-#     median_rating = median(Rating)
-#   )
-# 
-# # calculating the distribution of the rating percent
-# candles %>%
-#   group_by(Rating) %>%
-#   summarize(total = n()) %>%
-#   mutate(percent = round(total / sum(total) * 100, 1))
-# 
-# # calculating which 10 months had the greatest deviation (sd())
-# candles_monthly <- candles %>%
-#   mutate(year = year(Date)) %>%
-#   mutate(month = month(Date)) %>%
-#   group_by(year, month) %>%
-#   summarize(
-#     ratings = n(),
-#     avg_rating = mean(Rating, na.rm = T),
-#     sd_rating = sd(Rating, na.rm = T)
-#   ) %>%
-#   ungroup() %>%
-#   arrange(desc(sd_rating)) %>%
-#   filter(year > 2018) %>%
-#   slice(1:10)
-# 
-# candles_monthly
-# 
-# # calculating the percent of reviews by month that mention not having a smell
-# mutate(no_scent = case_when(
-#   str_detect(Review, "[Nn]o scent") ~ 1,
-#   str_detect(Review, "[Nn]o smell") ~ 1,
-#   str_detect(Review, "[Dd]oes not smell like") ~ 1,
-#   str_detect(Review, "[Dd]oesn't smell like") ~ 1,
-#   str_detect(Review, "[Cc]an't smell") ~ 1,
-#   str_detect(Review, "[Cc]annot smell") ~ 1,
-#   str_detect(Review, "[Ff]aint smell") ~ 1,
-#   str_detect(Review, "[Ff]aint scent") ~ 1,
-#   str_detect(Review, "[Dd]on't smell") ~ 1,
-#   str_detect(Review, "[Ll]ike nothing") ~ 1,
-#   TRUE ~ 0
-# ))
-# 
-# scented_timeline_monthly1
-# 
-# # calculating the percent for each month and year
-# scented_timeline_monthly2 <- scented_timeline_monthly1 %>%
-#   mutate(
-#     year = year(Date),
-#     month = month(Date)
-#   ) %>%
-#   # let's aggregate around year and month
-#   group_by(year, month) %>%
-#   # we just need to add up the 1s in no_scent and count up the total reviews with n()
-#   summarize(no_scent = sum(no_scent), reviews = n()) %>%
-#   # and do some math
-#   mutate(percent = no_scent / reviews * 100) %>%
-#   select(year, month, value = percent) %>%
-#   mutate(type = "percent no smell") %>%
-#   ungroup() %>%
-#   mutate(row = row_number())
-# 
-# scented_timeline_monthly2
-# 
-# # plotting it
-# ggplot(data = scented_timeline_monthly2, aes(x = row, y = value)) +
-#   geom_line() +
-#   geom_smooth() +
-#   theme_minimal() +
-#   labs(
-#     title = "Percent of Yankee Candle reviews mentioning no smell",
-#     y = "Percent", x = ""
-#   )
+candles <- read_csv("input/scented.csv")
+glimpse(candles)
+
+# calculating the mean and the median
+candles %>%
+  summarize(
+    avg_rating = mean(Rating),
+    median_rating = median(Rating)
+  )
+
+# calculating the distribution of the rating percent
+candles %>%
+  group_by(Rating) %>%
+  summarize(total = n()) %>%
+  mutate(percent = round(total / sum(total) * 100, 1))
+
+# calculating which 10 months had the greatest deviation (sd())
+candles_monthly <- candles %>%
+  mutate(year = year(Date)) %>%
+  mutate(month = month(Date)) %>%
+  group_by(year, month) %>%
+  summarize(
+    ratings = n(),
+    avg_rating = mean(Rating, na.rm = T),
+    sd_rating = sd(Rating, na.rm = T)
+  ) %>%
+  ungroup() %>%
+  arrange(desc(sd_rating)) %>%
+  filter(year > 2018) %>%
+  slice(1:10)
+
+candles_monthly
+
+# calculating the percent of reviews by month that mention not having a smell
+scented_timeline_monthly1 <-  candles_monthly %>% 
+  mutate(no_scent = case_when(
+  str_detect(Review, "[Nn]o scent") ~ 1,
+  str_detect(Review, "[Nn]o smell") ~ 1,
+  str_detect(Review, "[Dd]oes not smell like") ~ 1,
+  str_detect(Review, "[Dd]oesn't smell like") ~ 1,
+  str_detect(Review, "[Cc]an't smell") ~ 1,
+  str_detect(Review, "[Cc]annot smell") ~ 1,
+  str_detect(Review, "[Ff]aint smell") ~ 1,
+  str_detect(Review, "[Ff]aint scent") ~ 1,
+  str_detect(Review, "[Dd]on't smell") ~ 1,
+  str_detect(Review, "[Ll]ike nothing") ~ 1,
+  TRUE ~ 0
+))
+
+scented_timeline_monthly1
+
+# calculating the percent for each month and year
+scented_timeline_monthly2 <- scented_timeline_monthly1 %>%
+  mutate(
+    year = year(Date),
+    month = month(Date)
+  ) %>%
+  # let's aggregate around year and month
+  group_by(year, month) %>%
+  # we just need to add up the 1s in no_scent and count up the total reviews with n()
+  summarize(no_scent = sum(no_scent), reviews = n()) %>%
+  # and do some math
+  mutate(percent = no_scent / reviews * 100) %>%
+  select(year, month, value = percent) %>%
+  mutate(type = "percent no smell") %>%
+  ungroup() %>%
+  mutate(row = row_number())
+
+scented_timeline_monthly2
+
+# plotting it
+ggplot(data = scented_timeline_monthly2, aes(x = row, y = value)) +
+  geom_line() +
+  geom_smooth() +
+  theme_minimal() +
+  labs(
+    title = "Percent of Yankee Candle reviews mentioning no smell",
+    y = "Percent", x = ""
+  )
 
 # getting daily Covid-19 case counts 
 covid <- read_csv("https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
@@ -1044,28 +1055,28 @@ covid_long_monthly
 # comparing trend lines for both data sets
 # This only works because we were careful to make sure the column names match
 # from the different data sets
-# monthly <- rbind(covid_long_monthly, scented_timeline_monthly2)
-# 
-# monthly %>%
-#   ggplot(aes(x = row, y = value)) +
-#   geom_line() +
-#   facet_wrap(vars(type), scale = "free_y") +
-#   geom_smooth()
-# 
-# # another way of plotting it
-# monthly %>%
-#   ggplot(aes(x = row, y = value, color = type)) +
-#   geom_line() +
-#   geom_smooth() +
-#   theme_minimal() +
-#   labs(title = "Covid cases versus Amazon 'no scent' candle reviews")
-# 
-# # reshaping data from long to wide to check correlation
-# monthly_wide <- monthly %>%
-#   pivot_wider(names_from = "type", values_from = "value") %>%
-#   filter(!is.na(`percent no smell`))
-# 
-# glimpse(monthly_wide)
+monthly <- rbind(covid_long_monthly, scented_timeline_monthly2)
+
+monthly %>%
+  ggplot(aes(x = row, y = value)) +
+  geom_line() +
+  facet_wrap(vars(type), scale = "free_y") +
+  geom_smooth()
+
+# another way of plotting it
+monthly %>%
+  ggplot(aes(x = row, y = value, color = type)) +
+  geom_line() +
+  geom_smooth() +
+  theme_minimal() +
+  labs(title = "Covid cases versus Amazon 'no scent' candle reviews")
+
+# reshaping data from long to wide to check correlation
+monthly_wide <- monthly %>%
+  pivot_wider(names_from = "type", values_from = "value") %>%
+  filter(!is.na(`percent no smell`))
+
+glimpse(monthly_wide)
 
 # getting the data
 boston_salaries <- read_csv("input/boston.csv")
