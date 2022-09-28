@@ -418,9 +418,11 @@ Nearly every news story that involves data analysis can be derived from one thes
 knitr::include_graphics("input/pdf/ADJ_Class_2.pdf")
 ```
 
-```{r}
-# Sys.getenv("CENSUS_API_KEY")
+```{r results=F}
 census_api_key(census_api_key, overwrite = TRUE, install = TRUE)
+```
+
+```{r}
 county_pop <- get_acs(geography = "county", variables = "B01003_001", year = 2020)
 df <- read_csv("https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.csv")
 
