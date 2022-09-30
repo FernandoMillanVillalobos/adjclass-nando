@@ -163,6 +163,8 @@ library(tigris)
 library(viridis)
 library(biscale)
 library(svglite)
+library(leaflet)
+library(httpuv)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -1349,10 +1351,170 @@ finalPlot
 #install.packages("svglite") to make this work
 # save_plot("output/test.svg", finalPlot, base_height = NULL, base_width = 12)
 ```
+The __Leaflet__ R package was created by the folks behind RStudio to integrate with the popular opensource JavaScript library. Essentially, this package lets you make maps with custom map tiles, markers, polygons, lines, popups, and geojson. Almost any maps you can make in Google Fusion Tables or Carto(DB), you can make in R using the Leaflet package. Once the map was created, if you want, you could click on “export” in the Viewer tab and save it as an html file:
+
+- `leaflet()` initializes the leaflet work space
+- `addTiles()` by itself will bring in the default OpenStreetMap tiles
+- `setView()` is pretty self-explanatory but is simpler to implement
+- `addMarkers()` with some specific parameters.
+
+The order of commands is important. A view can’t be set unless there are tiles established first. `addTiles()` uses the OpenStreetMap default, we can pass on some new data to some other third-party tiles with the `addProviderTiles()` function.
+
+## Interactive dashboard
+
+[RMarkdown and scripts -> adjclass-nando-dashboard.Rproj]
+
+Sometimes you need an interactive map that you can host internally for reporting purposes, for that we’re going to build on what we’ve already learned and use two really new packages: __crosstalk__ and __flexdashboard__. __Crosstalk__ builds on top of the __htmlwidgets__ package (which has been creating all the stuff you’ve been putting in iframes from R) by letting different elements “talk” to each other. This lets you alter one interactive by clicking around in another. Usually for filtering. This level of control is something that one would have to create in R using Shiny, which would require a server and perhaps Docker knowledge. But __Crosstalk__ doesn’t require Shiny. You can use it alone or use R Markdown to generate a static HTML document you can host anywhere. Some limitations: At the moment it can only links individual data points and not aggregate or summary views. The next big limitation is that you shouldn’t use it for huge data sets because it will be all served in a browser. __Flexdashboard__ is simply a package that helps organize interactive dashboards using bootstrap. 
+
+After loading and filtering the data frame and storing it, we then used the `SharedData$new()` function to convert state into a __crosstalk__ object. This is like an enhanced data set. We’re using a few __crosstalk__ specific filter functions: `filter_select()`, `filter_checkbox()`, and `filter_slider()` that will let us choose how to filter the st shared data object. We’ve wrapped a couple of them around an additional function: `bscols()` that will pair up a couple of the narrower filters so it looks pretty. When we add filters on the left, either with a pull down menu or with the check box or via the slider bar, the table on the right will automatically update.
+
+```{r}
+# using leaflet for the very first time
+# Insert your latitude and longitude in the code below
+# NOTE: Don't get them reversed otherwise you'll end up in the South Pole.
+
+# Initialize and assign m as the leaflet object
+m <- leaflet() %>%
+  # Now add tiles to it
+  addTiles() %>%
+  # Setting the middle of where the map should be and the zoom level
+  setView(lng = -4.44400, lat = 36.69641, zoom = 20) %>%
+  # Now, add a marker with a popup,
+  addMarkers(lng = -4.44400, lat = 36.69641, popup = "<b>Hello</b><br><a href='https://www.google.com'>My parents</a>")
+m
+
+# getting the data
+pharmacies <- read_csv("input/all_pharmacies_summarized.csv")
+glimpse(pharmacies)
+
+pharm_state <- pharmacies %>%
+  filter(BUYER_STATE == "LA")
+
+# opioid pain pill data for Louisiana between 2006 and 2012
+m <- leaflet(pharm_state) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter) %>%
+  # if you chose another State, you'll have to adjust the view lat and lon below
+  setView(-92.469698, 31.012156, zoom = 7) %>%
+  addCircles(~lon, ~lat,
+    popup = pharm_state$BUYER_NAME, weight = 3, radius = 40,
+    color = "#ffa500", stroke = TRUE, fillOpacity = 0.8
+  )
+m
+
+# the average number of pills per person per year
+pharm_state <- pharm_state %>%
+  arrange(desc(per_person))
+
+m <- leaflet(pharm_state) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter) %>%
+  setView(-92.469698, 31.012156, zoom = 7) %>%
+  addCircleMarkers(~lon, ~lat,
+    popup = paste0(
+      pharm_state$BUYER_NAME, "<br />",
+      pharm_state$per_person, " pills per person per year"
+    ),
+    weight = 3,
+    radius = sqrt(pharm_state$per_person) * 3,
+    color = "#ffa500",
+    stroke = FALSE,
+    fillOpacity = 0.3
+  )
+m
+
+# colors based on data
+cof <- colorFactor(c("#ffa500", "#13ED3F"), domain = c("CHAIN PHARMACY", "RETAIL PHARMACY"))
+# mapping based on type
+m <- leaflet(pharm_state) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter) %>%
+  setView(-92.469698, 31.012156, zoom = 7) %>%
+  addCircleMarkers(~lon, ~lat,
+    popup = paste0(
+      pharm_state$BUYER_NAME, "<br />",
+      pharm_state$per_person, " pills per person per year"
+    ),
+    weight = 3,
+    radius = sqrt(pharm_state$per_person) * 3,
+    stroke = FALSE,
+    fillOpacity = 0.3,
+    # this line below is really the only thing that's different
+    color = ~ cof(BUYER_BUS_ACT)
+  )
+m
+
+# adding a legend
+m <- leaflet(pharm_state) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter) %>%
+  setView(-92.469698, 31.012156, zoom = 7) %>%
+  addCircleMarkers(~lon, ~lat,
+    popup = paste0(
+      pharm_state$BUYER_NAME, "<br />",
+      pharm_state$per_person, " pills per person per year"
+    ),
+    weight = 3,
+    radius = sqrt(pharm_state$per_person) * 3,
+    stroke = FALSE,
+    fillOpacity = 0.3,
+    color = ~ cof(BUYER_BUS_ACT)
+  ) %>%
+  # this line below is really the only thing that's different
+  addLegend("bottomright",
+    colors = c("#ffa500", "#13ED3F"),
+    labels = c("Chain", "Retail"),
+    title = "Pharmacy type"
+  )
+m
+
+# adding a customized legend
+# set legend features
+colors <- c("gray", "gray", "gray", "#ffa500", "#13ED3F")
+labels <- c("5 pills", "15 pills", "30 pills", "Chain", "Retail")
+sizes <- c(sqrt(5) * 3, sqrt(15) * 3, sqrt(30) * 3, 15, 15)
+shapes <- c("circle", "circle", "circle", "square", "square")
+borders <- c("gray", "gray", "gray", "#ffa500", "#13ED3F")
+
+addLegendCustom <- function(map, colors, labels, sizes, shapes, borders, opacity = 0.5) {
+  make_shapes <- function(colors, sizes, borders, shapes) {
+    shapes <- gsub("circle", "50%", shapes)
+    shapes <- gsub("square", "0%", shapes)
+    paste0(colors, "; width:", sizes, "px; height:", sizes, "px; border:3px solid ", borders, "; border-radius:", shapes)
+  }
+  make_labels <- function(sizes, labels) {
+    paste0(
+      "<div style='float: right; display: inline-block;height: ",
+      sizes, "px;margin-top: 4px;line-height: ",
+      sizes, "px;'>", labels, "</div>"
+    )
+  }
+  legend_colors <- make_shapes(colors, sizes, borders, shapes)
+  legend_labels <- make_labels(sizes, labels)
+
+  return(addLegend(map, colors = legend_colors, labels = legend_labels, opacity = opacity))
+}
+
+## okay, back to our map code but replacing the addLegend() function
+## with our new addCustomLegend() function
+m <- leaflet(pharm_state) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter) %>%
+  setView(-92.469698, 31.012156, zoom = 7) %>%
+  addCircleMarkers(~lon, ~lat,
+    popup = paste0(
+      pharm_state$BUYER_NAME, "<br />",
+      pharm_state$per_person, " pills per person per year"
+    ),
+    weight = 3,
+    radius = sqrt(pharm_state$per_person) * 3,
+    stroke = FALSE,
+    fillOpacity = 0.3,
+    color = ~ cof(BUYER_BUS_ACT)
+  ) %>%
+  # this line below is really the only thing that's different
+  addLegendCustom(colors, labels, sizes, shapes, borders)
+m
+```
+
 ```{r, fig.cap=c("Module 4: Statistics"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
 knitr::include_graphics("input/pdf/ADJ_Class_4.pdf")
 ```
-
 # Linting
 
 The code in this RMarkdown is linted with the [lintr package](https://github.com/jimhester/lintr), which is based on the  [tidyverse style guide](http://style.tidyverse.org/). 
