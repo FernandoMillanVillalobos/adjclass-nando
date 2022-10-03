@@ -165,6 +165,7 @@ library(biscale)
 library(svglite)
 library(leaflet)
 library(httpuv)
+library(BFS)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -1351,6 +1352,23 @@ finalPlot
 #install.packages("svglite") to make this work
 # save_plot("output/test.svg", finalPlot, base_height = NULL, base_width = 12)
 ```
+```{r}
+# getting the data
+parking <- st_read("input/parking/taz.view_pp_ogd.shp")
+glimpse(parking)
+
+zh_city <- st_read("input/zh_city/stzh.adm_stadtkreise_a.shp")
+glimpse(zh_city)
+
+
+
+# plotting
+ggplot() +
+  geom_sf(data = zh_city) +
+  geom_sf(data = parking, color = "blue") +
+  theme_void() +
+  labs(title = "Öffentlich zugängliche Strassenparkplätze OGD")
+```
 The __Leaflet__ R package was created by the folks behind RStudio to integrate with the popular opensource JavaScript library. Essentially, this package lets you make maps with custom map tiles, markers, polygons, lines, popups, and geojson. Almost any maps you can make in Google Fusion Tables or Carto(DB), you can make in R using the Leaflet package. Once the map was created, if you want, you could click on “export” in the Viewer tab and save it as an html file:
 
 - `leaflet()` initializes the leaflet work space
@@ -1511,6 +1529,7 @@ m <- leaflet(pharm_state) %>%
   addLegendCustom(colors, labels, sizes, shapes, borders)
 m
 ```
+
 
 ```{r, fig.cap=c("Module 4: Statistics"), out.width="100%", out.height="600px", echo=FALSE, fig.show='hold'}
 knitr::include_graphics("input/pdf/ADJ_Class_4.pdf")
