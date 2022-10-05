@@ -165,7 +165,6 @@ library(biscale)
 library(svglite)
 library(leaflet)
 library(httpuv)
-library(BFS)
 library(janitor)",
 file = "manifest.R")
 ```
@@ -1352,23 +1351,31 @@ finalPlot
 #install.packages("svglite") to make this work
 # save_plot("output/test.svg", finalPlot, base_height = NULL, base_width = 12)
 ```
+
 ```{r}
 # getting the data
 parking <- st_read("input/parking/taz.view_pp_ogd.shp")
-glimpse(parking)
-
 zh_city <- st_read("input/zh_city/stzh.adm_stadtkreise_a.shp")
+glimpse(parking)
 glimpse(zh_city)
 
+parking_WNG60 <- parking %>% 
+  filter(art == "Weiss markiert" & parkdauer > 60 & gebuehrenp == "nicht gebührenpflichtig")
 
-
-# plotting
+# plotting static map
 ggplot() +
-  geom_sf(data = zh_city) +
-  geom_sf(data = parking, color = "blue") +
+  geom_sf(data = zh_city, color = "#777777", fill = NA, size = 0.2) +
+  geom_point(data = parking_WNG60, aes(geometry = geometry), stat = "sf_coordinates", fill = NA, alpha = 0.05, color = "brown3", size = 2) +
+  coord_sf(datum = NA) +
+  geom_sf_text(data = zh_city, aes(label = bezeichnun), size = 3, color = "grey", fontface = "bold") +
   theme_void() +
-  labs(title = "Öffentlich zugängliche Strassenparkplätze OGD")
+  labs(
+    title = "Öffentlich zugängliche Strassenparkplätze OGD",
+    subtitle = "Weiss markiert, nicht gebührenpflichtig, >60 Min.",
+    caption = "Quelle: https://data.stadt-zuerich.ch",
+  )
 ```
+
 The __Leaflet__ R package was created by the folks behind RStudio to integrate with the popular opensource JavaScript library. Essentially, this package lets you make maps with custom map tiles, markers, polygons, lines, popups, and geojson. Almost any maps you can make in Google Fusion Tables or Carto(DB), you can make in R using the Leaflet package. Once the map was created, if you want, you could click on “export” in the Viewer tab and save it as an html file:
 
 - `leaflet()` initializes the leaflet work space

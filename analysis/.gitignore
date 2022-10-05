@@ -10,4 +10,3 @@ auth
 manifest.R
 output/ignore/*
 input/ignore/*
-scripts/api-keys.R
